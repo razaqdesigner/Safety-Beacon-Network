@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SafeAlert community safety API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: Registered citizens
+  - name: alerts
+    description: Emergency distress alerts
 paths:
   /healthz:
     get:
@@ -24,6 +28,128 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /users/register:
+    post:
+      operationId: registerUser
+      tags: [users]
+      summary: Register a new citizen
+      description: Creates a registered user account with personal information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserInput"
+      responses:
+        "200":
+          description: Registered user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by id
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List registered users (admin)
+      responses:
+        "200":
+          description: All registered users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /alerts:
+    post:
+      operationId: createAlert
+      tags: [alerts]
+      summary: Trigger an emergency alert
+      description: Creates a distress alert with the user's precise location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertInput"
+      responses:
+        "200":
+          description: The created alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List all alerts (admin)
+      responses:
+        "200":
+          description: All alerts with user details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlertWithUser"
+
+  /alerts/user/{userId}:
+    get:
+      operationId: listUserAlerts
+      tags: [alerts]
+      summary: List alerts for a single user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alerts for this user, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/stats:
+    get:
+      operationId: getAlertStats
+      tags: [alerts]
+      summary: Aggregate alert statistics (admin)
+      responses:
+        "200":
+          description: Counts and recent activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertStats"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +160,127 @@ components:
       required:
         - status
 
+    RegisterUserInput:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+        phoneNumber:
+          type: string
+          minLength: 5
+        nationalId:
+          type: string
+          minLength: 3
+        email:
+          type: string
+          format: email
+      required:
+        - fullName
+        - phoneNumber
+        - nationalId
+        - email
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        fullName:
+          type: string
+        phoneNumber:
+          type: string
+        nationalId:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - fullName
+        - phoneNumber
+        - nationalId
+        - email
+        - createdAt
+
+    CreateAlertInput:
+      type: object
+      properties:
+        userId:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        accuracy:
+          type: number
+          nullable: true
+        triggerSource:
+          type: string
+          enum: [button, shake]
+      required:
+        - userId
+        - latitude
+        - longitude
+        - triggerSource
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        accuracy:
+          type: number
+          nullable: true
+        triggerSource:
+          type: string
+          enum: [button, shake]
+        status:
+          type: string
+          enum: [active, resolved]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - latitude
+        - longitude
+        - triggerSource
+        - status
+        - createdAt
+
+    AlertWithUser:
+      allOf:
+        - $ref: "#/components/schemas/Alert"
+        - type: object
+          properties:
+            user:
+              $ref: "#/components/schemas/User"
+          required:
+            - user
+
+    AlertStats:
+      type: object
+      properties:
+        totalAlerts:
+          type: integer
+        activeAlerts:
+          type: integer
+        alertsLast24h:
+          type: integer
+        totalUsers:
+          type: integer
+      required:
+        - totalAlerts
+        - activeAlerts
+        - alertsLast24h
+        - totalUsers
