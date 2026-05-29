@@ -141,6 +141,25 @@ export const ListUserAlertsResponseItem = zod.object({
 export const ListUserAlertsResponse = zod.array(ListUserAlertsResponseItem);
 
 /**
+ * Marks an active distress alert as resolved by a dispatcher
+ * @summary Resolve an active alert
+ */
+export const ResolveAlertParams = zod.object({
+  alertId: zod.coerce.string(),
+});
+
+export const ResolveAlertResponse = zod.object({
+  id: zod.string(),
+  userId: zod.string(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  accuracy: zod.number().nullish(),
+  triggerSource: zod.enum(["button", "shake"]),
+  status: zod.enum(["active", "resolved"]),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Aggregate alert statistics (admin)
  */
 export const GetAlertStatsResponse = zod.object({

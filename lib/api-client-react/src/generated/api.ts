@@ -590,6 +590,91 @@ export function useListUserAlerts<
 }
 
 /**
+ * Marks an active distress alert as resolved by a dispatcher
+ * @summary Resolve an active alert
+ */
+export const getResolveAlertUrl = (alertId: string) => {
+  return `/api/alerts/${alertId}/resolve`;
+};
+
+export const resolveAlert = async (
+  alertId: string,
+  options?: RequestInit,
+): Promise<Alert> => {
+  return customFetch<Alert>(getResolveAlertUrl(alertId), {
+    ...options,
+    method: "PATCH",
+  });
+};
+
+export const getResolveAlertMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveAlert>>,
+    TError,
+    { alertId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resolveAlert>>,
+  TError,
+  { alertId: string },
+  TContext
+> => {
+  const mutationKey = ["resolveAlert"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resolveAlert>>,
+    { alertId: string }
+  > = (props) => {
+    const { alertId } = props ?? {};
+
+    return resolveAlert(alertId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResolveAlertMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resolveAlert>>
+>;
+
+export type ResolveAlertMutationError = ErrorType<void>;
+
+/**
+ * @summary Resolve an active alert
+ */
+export const useResolveAlert = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveAlert>>,
+    TError,
+    { alertId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resolveAlert>>,
+  TError,
+  { alertId: string },
+  TContext
+> => {
+  return useMutation(getResolveAlertMutationOptions(options));
+};
+
+/**
  * @summary Aggregate alert statistics (admin)
  */
 export const getGetAlertStatsUrl = () => {

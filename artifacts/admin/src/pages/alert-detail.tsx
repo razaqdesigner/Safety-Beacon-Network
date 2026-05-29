@@ -1,20 +1,35 @@
 import { useParams } from "wouter";
-import { useListAlerts } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListAlerts,
+  useResolveAlert,
+  getListAlertsQueryKey,
+  getGetAlertStatsQueryKey,
+} from "@workspace/api-client-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, CheckCircle2, MapPin, Clock, Smartphone, User, Phone, Mail, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MapPin, Clock, Smartphone, User, Phone, Mail, ExternalLink, Loader2 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Link } from "wouter";
 
 export default function AlertDetail() {
   const params = useParams();
+  const queryClient = useQueryClient();
   const { data: alerts, isLoading } = useListAlerts();
-  
+  const { mutate: resolveAlert, isPending: isResolving } = useResolveAlert({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetAlertStatsQueryKey() });
+      },
+    },
+  });
+
   const alert = alerts?.find(a => a.id === params.id);
-  
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -50,6 +65,10 @@ export default function AlertDetail() {
   const minutesElapsed = Math.floor((new Date().getTime() - new Date(alert.createdAt).getTime()) / 60000);
   const isHighUrgency = isActive && minutesElapsed > 5;
 
+  const handleResolve = () => {
+    resolveAlert({ alertId: alert.id });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -70,18 +89,28 @@ export default function AlertDetail() {
             ID: <span className="font-mono">{alert.id}</span>
           </p>
         </div>
-        
+
         <div className="flex gap-3">
           <Button variant="outline" asChild>
             <Link href="/alerts">Back</Link>
           </Button>
-          <Button 
-            disabled 
-            variant={isActive ? "default" : "secondary"}
-            className={isActive ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
-          >
-            {isActive ? "Resolve (coming soon)" : "Already Resolved"}
-          </Button>
+          {isActive ? (
+            <Button
+              onClick={handleResolve}
+              disabled={isResolving}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {isResolving ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Resolving…</>
+              ) : (
+                <><CheckCircle2 className="mr-2 h-4 w-4" /> Mark Resolved</>
+              )}
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled>
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Already Resolved
+            </Button>
+          )}
         </div>
       </div>
 
@@ -101,14 +130,14 @@ export default function AlertDetail() {
               </div>
             </CardHeader>
             <div className="h-[400px] w-full bg-muted relative">
-              <iframe 
-                width="100%" 
-                height="100%" 
-                frameBorder="0" 
-                scrolling="no" 
-                marginHeight={0} 
-                marginWidth={0} 
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${alert.longitude-0.01}%2C${alert.latitude-0.01}%2C${alert.longitude+0.01}%2C${alert.latitude+0.01}&layer=mapnik&marker=${alert.latitude}%2C${alert.longitude}`}
+              <iframe
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                scrolling="no"
+                marginHeight={0}
+                marginWidth={0}
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${alert.longitude - 0.01}%2C${alert.latitude - 0.01}%2C${alert.longitude + 0.01}%2C${alert.latitude + 0.01}&layer=mapnik&marker=${alert.latitude}%2C${alert.longitude}`}
                 className="absolute inset-0"
               />
             </div>
@@ -150,7 +179,7 @@ export default function AlertDetail() {
                     Triggered via <span className="font-medium capitalize">{alert.triggerSource}</span> from device.
                   </p>
                 </div>
-                
+
                 {isActive && (
                   <div className="relative">
                     <div className="absolute -left-[29px] top-1 h-3 w-3 rounded-full border-2 border-card bg-destructive animate-pulse" />

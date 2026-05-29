@@ -137,6 +137,28 @@ paths:
                 items:
                   $ref: "#/components/schemas/Alert"
 
+  /alerts/{alertId}/resolve:
+    patch:
+      operationId: resolveAlert
+      tags: [alerts]
+      summary: Resolve an active alert
+      description: Marks an active distress alert as resolved by a dispatcher
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The resolved alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Alert not found
+
   /alerts/stats:
     get:
       operationId: getAlertStats

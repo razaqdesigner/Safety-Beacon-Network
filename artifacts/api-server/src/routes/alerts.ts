@@ -92,6 +92,30 @@ router.get("/user/:userId", async (req, res) => {
   res.json(rows);
 });
 
+router.patch("/:alertId/resolve", async (req, res) => {
+  const { alertId } = req.params;
+
+  const [existing] = await db
+    .select({ id: alertsTable.id, status: alertsTable.status })
+    .from(alertsTable)
+    .where(eq(alertsTable.id, alertId))
+    .limit(1);
+
+  if (!existing) {
+    res.status(404).json({ error: "Alert not found" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(alertsTable)
+    .set({ status: "resolved" })
+    .where(eq(alertsTable.id, alertId))
+    .returning();
+
+  req.log.info({ alertId: updated.id }, "Alert resolved by dispatcher");
+  res.json(updated);
+});
+
 // Suppress unused import warning for `and`
 void and;
 
