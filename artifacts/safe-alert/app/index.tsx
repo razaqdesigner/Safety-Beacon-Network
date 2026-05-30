@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,13 +8,21 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import { Redirect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Brand } from "@/components/Brand";
 import { Confirmation } from "@/components/Confirmation";
 import { ReassuringMessage } from "@/components/ReassuringMessage";
 import { SOSButton } from "@/components/SOSButton";
@@ -35,9 +43,12 @@ export default function Home() {
   const [reassureVisible, setReassureVisible] = useState(false);
   const [trigger, setTrigger] = useState<TriggerSource | null>(null);
   const [sending, setSending] = useState(false);
-  const [lastAlertAt, setLastAlertAt] = useState<Date | null>(null);
+  const [alertSent, setAlertSent] = useState(false);
 
   const createAlert = useCreateAlert();
+
+  const sentScale = useSharedValue(0);
+  const sentOpacity = useSharedValue(0);
 
   const openConfirm = useCallback((source: TriggerSource) => {
     setTrigger(source);
@@ -119,16 +130,17 @@ export default function Home() {
       }
 
       setConfirmVisible(false);
-      setLastAlertAt(new Date());
       setTrigger(null);
+      setAlertSent(true);
+      sentScale.value = withSpring(1, { damping: 14, stiffness: 160 });
+      sentOpacity.value = withTiming(1, { duration: 300 });
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Unable to send alert.";
+      const msg = err instanceof Error ? err.message : "Unable to send alert.";
       Alert.alert("Couldn't send alert", msg);
     } finally {
       setSending(false);
     }
-  }, [userId, trigger, createAlert]);
+  }, [userId, trigger, createAlert, sentScale, sentOpacity]);
 
   const handleNo = useCallback(() => {
     setConfirmVisible(false);
@@ -139,40 +151,63 @@ export default function Home() {
     }
   }, []);
 
-  // Pre-warm location permission so the first emergency is fast.
   useEffect(() => {
     if (!userId || Platform.OS === "web") return;
     Location.getForegroundPermissionsAsync().catch(() => {});
   }, [userId]);
 
+  const sentCardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sentScale.value }],
+    opacity: sentOpacity.value,
+  }));
+
   if (!isReady || (userId && isUserLoading)) {
     return (
-      <View
-        style={[
-          styles.center,
-          { backgroundColor: colors.background },
-        ]}
-      >
-        <ActivityIndicator color={colors.primary} />
+      <View style={[styles.center, { backgroundColor: colors.primary }]}>
+        <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }
 
-  if (!userId) {
-    return <Redirect href="/register" />;
-  }
+  if (!userId) return <Redirect href="/register" />;
+
+  const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
   return (
-    <View
-      style={[styles.screen, { backgroundColor: colors.background }]}
-    >
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      {/* ── Header ── */}
       <View
         style={[
           styles.header,
-          { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 16) },
+          { paddingTop: insets.top + (Platform.OS === "web" ? 72 : 20) },
         ]}
       >
-        <Brand size="md" align="left" />
+        {/* Brand badge */}
+        <View style={styles.brandRow}>
+          <View
+            style={[
+              styles.shieldIcon,
+              { backgroundColor: colors.primary, shadowColor: colors.primary },
+            ]}
+          >
+            <View
+              style={[
+                styles.shieldDot,
+                { backgroundColor: colors.accent },
+              ]}
+            />
+          </View>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={[styles.brandName, { color: colors.foreground }]}>
+              Safe<Text style={{ color: colors.accent }}>Alert</Text>
+            </Text>
+            <Text style={[styles.brandSub, { color: colors.mutedForeground }]}>
+              COMMUNITY SAFETY
+            </Text>
+          </View>
+        </View>
+
+        {/* Profile button */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open profile"
@@ -180,75 +215,89 @@ export default function Home() {
           style={({ pressed }) => [
             styles.profileBtn,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: pressed ? 0.85 : 1,
+              backgroundColor: colors.primary,
+              opacity: pressed ? 0.8 : 1,
             },
           ]}
         >
-          <Feather name="user" size={20} color={colors.primary} />
+          <Text style={[styles.profileInitial, { color: colors.primaryForeground }]}>
+            {firstName.charAt(0).toUpperCase()}
+          </Text>
         </Pressable>
       </View>
 
+      {/* ── Status bar ── */}
+      <StatusBar alertSent={alertSent} />
+
+      {/* ── Body ── */}
       <View style={styles.body}>
+        {/* Greeting */}
         <View style={styles.greetBlock}>
-          <Text
-            style={[styles.greet, { color: colors.mutedForeground }]}
-          >
+          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
             {timeOfDayGreeting()}
           </Text>
           <Text
             style={[styles.name, { color: colors.foreground }]}
             numberOfLines={1}
           >
-            {user?.fullName ?? "Hello"}
+            {firstName}
+          </Text>
+          <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
+            Your safety is our priority
           </Text>
         </View>
 
-        <SOSButton
-          onPress={() => openConfirm("button")}
-          disabled={sending}
-        />
+        {/* SOS Button */}
+        <SOSButton onPress={() => openConfirm("button")} disabled={sending} />
 
-        <View
-          style={[
-            styles.hintCard,
-            {
-              backgroundColor: colors.card,
-              borderRadius: colors.radius,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View
+        {/* Sent confirmation card */}
+        {alertSent && (
+          <Animated.View
             style={[
-              styles.hintIcon,
-              { backgroundColor: colors.accent + "1F" },
+              styles.sentCard,
+              { backgroundColor: colors.primary, borderRadius: colors.radius },
+              sentCardStyle,
             ]}
           >
-            <Feather
-              name="smartphone"
-              size={18}
-              color={colors.accent}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.hintTitle, { color: colors.foreground }]}>
-              Shake your phone vigorously 4 times
-            </Text>
-            <Text
-              style={[
-                styles.hintBody,
-                { color: colors.mutedForeground },
-              ]}
-            >
-              When tapping isn't an option, a strong shake gesture opens the
-              same emergency prompt — discreet and fast.
-            </Text>
-          </View>
-        </View>
+            <View style={[styles.sentIconWrap, { backgroundColor: colors.accent + "22" }]}>
+              <Feather name="check-circle" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sentTitle, { color: colors.primaryForeground }]}>
+                Help is on the way
+              </Text>
+              <Text style={[styles.sentSub, { color: "rgba(255,255,255,0.65)" }]}>
+                Location sent to dispatchers
+              </Text>
+            </View>
+          </Animated.View>
+        )}
 
-        <StatusPill lastAlertAt={lastAlertAt} />
+        {/* Shake hint */}
+        {!alertSent && (
+          <View
+            style={[
+              styles.shakeCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: colors.radius,
+              },
+            ]}
+          >
+            <View style={[styles.shakeIconWrap, { backgroundColor: colors.accent + "18" }]}>
+              <Feather name="smartphone" size={17} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.shakeTitle, { color: colors.foreground }]}>
+                Shake 4× for silent trigger
+              </Text>
+              <Text style={[styles.shakeSub, { color: colors.mutedForeground }]}>
+                A discreet alternative when tapping isn't possible
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <Confirmation
@@ -257,7 +306,6 @@ export default function Home() {
         onYes={handleYes}
         onNo={handleNo}
       />
-
       <ReassuringMessage
         visible={reassureVisible}
         onDismiss={() => setReassureVisible(false)}
@@ -266,53 +314,55 @@ export default function Home() {
   );
 }
 
-function StatusPill({ lastAlertAt }: { lastAlertAt: Date | null }) {
+function StatusBar({ alertSent }: { alertSent: boolean }) {
   const colors = useColors();
-  if (lastAlertAt) {
-    return (
-      <View
-        style={[
-          styles.statusPill,
-          {
-            backgroundColor: colors.primary,
-            borderRadius: 999,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.dot,
-            { backgroundColor: colors.accent },
-          ]}
-        />
-        <Text style={[styles.statusText, { color: "#fff" }]}>
-          Help dispatched · location sent
-        </Text>
-      </View>
-    );
-  }
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    if (alertSent) {
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      pulse.value = withTiming(1, { duration: 300 });
+    }
+  }, [alertSent, pulse]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
+
   return (
     <View
       style={[
-        styles.statusPill,
+        styles.statusBar,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderRadius: 999,
+          backgroundColor: alertSent ? colors.primary : colors.card,
+          borderColor: alertSent ? colors.primary : colors.border,
         },
       ]}
     >
-      <View
+      <Animated.View
         style={[
-          styles.dot,
-          { backgroundColor: "#3CB371" },
+          styles.statusDot,
+          {
+            backgroundColor: alertSent ? colors.accent : "#3CB371",
+          },
+          dotStyle,
         ]}
       />
       <Text
-        style={[styles.statusText, { color: colors.mutedForeground }]}
+        style={[
+          styles.statusText,
+          { color: alertSent ? colors.primaryForeground : colors.mutedForeground },
+        ]}
       >
-        Standing by · you're protected
+        {alertSent ? "Alert active · dispatchers notified" : "System active · standing by"}
       </Text>
     </View>
   );
@@ -327,93 +377,143 @@ function timeOfDayGreeting(): string {
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  screen: {
-    flex: 1,
-  },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  screen: { flex: 1 },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 8,
+    paddingHorizontal: 22,
+    paddingBottom: 12,
+  },
+  brandRow: { flexDirection: "row", alignItems: "center" },
+  shieldIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 5 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  shieldDot: { width: 13, height: 13, borderRadius: 7 },
+  brandName: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 18,
+    letterSpacing: -0.3,
+  },
+  brandSub: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 9,
+    letterSpacing: 1.4,
+    marginTop: 1,
   },
   profileBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
+  profileInitial: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 16,
+  },
+
+  statusBar: {
+    marginHorizontal: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 4,
+  },
+  statusDot: { width: 9, height: 9, borderRadius: 5 },
+  statusText: { fontFamily: "Inter_500Medium", fontSize: 13 },
+
   body: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 32,
+    justifyContent: "space-evenly",
+    paddingHorizontal: 22,
+    paddingBottom: 28,
   },
-  greetBlock: {
-    alignItems: "center",
-    marginTop: 12,
-  },
-  greet: {
+
+  greetBlock: { alignItems: "center" },
+  greeting: {
     fontFamily: "Inter_500Medium",
     fontSize: 14,
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
+    marginBottom: 2,
   },
   name: {
     fontFamily: "Inter_700Bold",
-    fontSize: 26,
-    letterSpacing: -0.4,
-    marginTop: 2,
-    maxWidth: 320,
+    fontSize: 32,
+    letterSpacing: -0.8,
     textAlign: "center",
   },
-  hintCard: {
+  tagline: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    marginTop: 4,
+    letterSpacing: 0.1,
+  },
+
+  sentCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 18,
-    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
     gap: 14,
+    padding: 18,
     width: "100%",
     maxWidth: 460,
   },
-  hintIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  sentIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
   },
-  hintTitle: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14.5,
-    marginBottom: 4,
+  sentTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    marginBottom: 2,
   },
-  hintBody: {
+  sentSub: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    lineHeight: 18,
   },
-  statusPill: {
+
+  shakeCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    gap: 14,
+    padding: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    width: "100%",
+    maxWidth: 460,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  shakeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statusText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
+  shakeTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    marginBottom: 3,
+  },
+  shakeSub: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12.5,
+    lineHeight: 17,
   },
 });
