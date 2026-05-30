@@ -10,6 +10,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import {
   getGetUserUrl,
+  lookupUser,
   useGetUser,
   useRegisterUser,
   type RegisterUserInput,
@@ -50,7 +51,10 @@ type AuthContextValue = {
   isUserLoading: boolean;
   registering: boolean;
   registerError: string | null;
+  recovering: boolean;
+  recoverError: string | null;
   register: (input: RegisterUserInput) => Promise<User>;
+  recoverSession: (params: { phone?: string; nationalId?: string }) => Promise<User>;
   signOut: () => Promise<void>;
 };
 
@@ -60,6 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [recovering, setRecovering] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +114,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserId(null);
   }, []);
 
+  const recoverSession = useCallback(
+    async (params: { phone?: string; nationalId?: string }): Promise<User> => {
+      setRecoverError(null);
+      setRecovering(true);
+      try {
+        const found = await lookupUser({
+          phone: params.phone,
+          nationalId: params.nationalId,
+        });
+        await setStoredUserId(found.id);
+        setUserId(found.id);
+        return found;
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Could not find your account";
+        setRecoverError(msg);
+        throw err;
+      } finally {
+        setRecovering(false);
+      }
+    },
+    [],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isReady,
@@ -116,7 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isUserLoading: !!userId && userQuery.isLoading,
       registering: registerMutation.isPending,
       registerError,
+      recovering,
+      recoverError,
       register,
+      recoverSession,
       signOut,
     }),
     [
@@ -126,7 +159,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userQuery.isLoading,
       registerMutation.isPending,
       registerError,
+      recovering,
+      recoverError,
       register,
+      recoverSession,
       signOut,
     ],
   );

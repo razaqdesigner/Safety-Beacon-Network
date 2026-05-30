@@ -22,6 +22,7 @@ import type {
   AlertWithUser,
   CreateAlertInput,
   HealthStatus,
+  LookupUserParams,
   RegisterUserInput,
   User,
 } from "./api.schemas";
@@ -197,6 +198,101 @@ export const useRegisterUser = <
 > => {
   return useMutation(getRegisterUserMutationOptions(options));
 };
+
+/**
+ * Returns the matching user so they can recover their session on a new device
+ * @summary Look up a registered user by phone or National ID
+ */
+export const getLookupUserUrl = (params?: LookupUserParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/users/lookup?${stringifiedParams}`
+    : `/api/users/lookup`;
+};
+
+export const lookupUser = async (
+  params?: LookupUserParams,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getLookupUserUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getLookupUserQueryKey = (params?: LookupUserParams) => {
+  return [`/api/users/lookup`, ...(params ? [params] : [])] as const;
+};
+
+export const getLookupUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof lookupUser>>,
+  TError = ErrorType<void>,
+>(
+  params?: LookupUserParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getLookupUserQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupUser>>> = ({
+    signal,
+  }) => lookupUser(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof lookupUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type LookupUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof lookupUser>>
+>;
+export type LookupUserQueryError = ErrorType<void>;
+
+/**
+ * @summary Look up a registered user by phone or National ID
+ */
+
+export function useLookupUser<
+  TData = Awaited<ReturnType<typeof lookupUser>>,
+  TError = ErrorType<void>,
+>(
+  params?: LookupUserParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof lookupUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getLookupUserQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get a user by id

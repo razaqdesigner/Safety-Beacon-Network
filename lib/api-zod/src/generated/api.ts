@@ -42,6 +42,24 @@ export const RegisterUserResponse = zod.object({
 });
 
 /**
+ * Returns the matching user so they can recover their session on a new device
+ * @summary Look up a registered user by phone or National ID
+ */
+export const LookupUserQueryParams = zod.object({
+  phone: zod.coerce.string().optional(),
+  nationalId: zod.coerce.string().optional(),
+});
+
+export const LookupUserResponse = zod.object({
+  id: zod.string(),
+  fullName: zod.string(),
+  phoneNumber: zod.string(),
+  nationalId: zod.string(),
+  email: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Get a user by id
  */
 export const GetUserParams = zod.object({

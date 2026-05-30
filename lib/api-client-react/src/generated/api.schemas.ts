@@ -80,3 +80,8 @@ export interface AlertStats {
   alertsLast24h: number;
   totalUsers: number;
 }
+
+export type LookupUserParams = {
+  phone?: string;
+  nationalId?: string;
+};

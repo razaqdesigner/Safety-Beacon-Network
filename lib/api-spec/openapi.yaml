@@ -49,6 +49,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+  /users/lookup:
+    get:
+      operationId: lookupUser
+      tags: [users]
+      summary: Look up a registered user by phone or National ID
+      description: Returns the matching user so they can recover their session on a new device
+      parameters:
+        - name: phone
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: nationalId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matched user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: No user found
+
   /users/{userId}:
     get:
       operationId: getUser

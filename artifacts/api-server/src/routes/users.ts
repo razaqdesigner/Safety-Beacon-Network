@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 import { RegisterUserBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -35,6 +35,35 @@ router.post("/register", async (req, res) => {
     .returning();
 
   res.json(created);
+});
+
+router.get("/lookup", async (req, res) => {
+  const { phone, nationalId } = req.query as {
+    phone?: string;
+    nationalId?: string;
+  };
+
+  if (!phone && !nationalId) {
+    res.status(400).json({ error: "Provide phone or nationalId" });
+    return;
+  }
+
+  const conditions = [];
+  if (phone) conditions.push(eq(usersTable.phoneNumber, phone));
+  if (nationalId) conditions.push(eq(usersTable.nationalId, nationalId));
+
+  const rows = await db
+    .select()
+    .from(usersTable)
+    .where(conditions.length === 1 ? conditions[0] : or(...conditions))
+    .limit(1);
+
+  if (rows.length === 0) {
+    res.status(404).json({ error: "No matching user found" });
+    return;
+  }
+
+  res.json(rows[0]);
 });
 
 router.get("/", async (_req, res) => {

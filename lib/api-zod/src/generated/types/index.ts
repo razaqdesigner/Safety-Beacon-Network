@@ -14,5 +14,6 @@ export * from "./alertWithUser";
 export * from "./createAlertInput";
 export * from "./createAlertInputTriggerSource";
 export * from "./healthStatus";
+export * from "./lookupUserParams";
 export * from "./registerUserInput";
 export * from "./user";

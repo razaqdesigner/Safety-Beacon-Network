@@ -17,7 +17,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -354,6 +354,30 @@ export default function Register() {
             Encrypted and only shared with authorized emergency dispatchers
           </Text>
         </View>
+
+        {/* Recovery link — only shown on step 0 */}
+        {step === 0 && (
+          <View style={styles.recoveryRow}>
+            <View style={[styles.recoveryDividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.recoveryDividerText, { color: colors.mutedForeground }]}>or</Text>
+            <View style={[styles.recoveryDividerLine, { backgroundColor: colors.border }]} />
+          </View>
+        )}
+        {step === 0 && (
+          <Link href="/lookup" asChild>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, alignItems: "center" }]}
+            >
+              <Text style={[styles.recoveryText, { color: colors.mutedForeground }]}>
+                Already registered?{" "}
+                <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold" }}>
+                  Recover your account
+                </Text>
+              </Text>
+            </Pressable>
+          </Link>
+        )}
       </ScrollView>
     </View>
   );
@@ -654,5 +678,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     lineHeight: 17,
+  },
+
+  /* Recovery */
+  recoveryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  recoveryDividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  recoveryDividerText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+  },
+  recoveryText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    textAlign: "center",
   },
 });
