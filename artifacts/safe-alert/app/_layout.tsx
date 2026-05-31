@@ -18,6 +18,11 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { setBaseUrl } from "@workspace/api-client-react";
 
+// Feather icon font must be loaded explicitly for native (Expo Go).
+// On web the icons work without this; on iOS/Android they go blank otherwise.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const FeatherFont = require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf") as number;
+
 if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
@@ -57,6 +62,7 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Feather: FeatherFont,
   });
 
   useEffect(() => {
