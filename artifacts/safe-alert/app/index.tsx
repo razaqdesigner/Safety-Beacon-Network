@@ -28,6 +28,7 @@ import { ReassuringMessage } from "@/components/ReassuringMessage";
 import { SOSButton } from "@/components/SOSButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useOnboarding } from "@/hooks/useOnboarding";
 import { useShakeDetector } from "@/hooks/useShakeDetector";
 import { useCreateAlert } from "@workspace/api-client-react";
 
@@ -38,6 +39,7 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isReady, userId, user, isUserLoading } = useAuth();
+  const { isReady: onboardingReady, hasSeenOnboarding } = useOnboarding();
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [reassureVisible, setReassureVisible] = useState(false);
@@ -161,7 +163,7 @@ export default function Home() {
     opacity: sentOpacity.value,
   }));
 
-  if (!isReady || (userId && isUserLoading)) {
+  if (!isReady || !onboardingReady || (userId && isUserLoading)) {
     return (
       <View style={[styles.center, { backgroundColor: colors.primary }]}>
         <ActivityIndicator color={colors.accent} size="large" />
@@ -169,7 +171,9 @@ export default function Home() {
     );
   }
 
-  if (!userId) return <Redirect href="/register" />;
+  if (!userId) {
+    return <Redirect href={hasSeenOnboarding ? "/register" : "/onboarding"} />;
+  }
 
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
