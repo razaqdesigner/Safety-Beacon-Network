@@ -3,12 +3,12 @@ import {
   ActivityIndicator,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -201,9 +201,6 @@ export default function Register() {
             Safe<Text style={{ color: colors.accent }}>Alert</Text>
           </Text>
           <Text style={styles.heroTitle}>Create your safety profile</Text>
-          <Text style={styles.heroSub}>
-            Helps dispatchers identify and assist you during emergencies
-          </Text>
         </View>
 
         {/* Step progress */}
@@ -211,8 +208,9 @@ export default function Register() {
       </View>
 
       {/* ── Form body ── */}
-      <ScrollView
+      <KeyboardAwareScrollView
         keyboardShouldPersistTaps="handled"
+        bottomOffset={24}
         contentContainerStyle={[
           styles.body,
           {
@@ -378,7 +376,7 @@ export default function Register() {
             </Pressable>
           </Link>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
@@ -494,33 +492,26 @@ const styles = StyleSheet.create({
   /* Hero */
   hero: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   backBtn: {
-    marginBottom: 12,
+    marginBottom: 8,
     alignSelf: "flex-start",
     padding: 4,
   },
-  heroText: { marginBottom: 20 },
+  heroText: { marginBottom: 14 },
   heroEyebrow: {
     fontFamily: "Inter_700Bold",
-    fontSize: 16,
+    fontSize: 15,
     color: "rgba(255,255,255,0.75)",
-    marginBottom: 6,
+    marginBottom: 4,
     letterSpacing: -0.2,
   },
   heroTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 28,
+    fontSize: 24,
     color: "#fff",
-    letterSpacing: -0.6,
-    marginBottom: 6,
-  },
-  heroSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.55)",
-    lineHeight: 20,
+    letterSpacing: -0.5,
   },
 
   /* Progress */
