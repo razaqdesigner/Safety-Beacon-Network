@@ -51,6 +51,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
       <Stack.Screen name="register" />
       <Stack.Screen name="lookup" />
+      <Stack.Screen name="history" />
       <Stack.Screen name="profile" options={{ presentation: "modal" }} />
     </Stack>
   );

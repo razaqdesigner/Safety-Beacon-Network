@@ -211,23 +211,41 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Profile button */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-          onPress={() => router.push("/profile")}
-          style={({ pressed }) => [
-            styles.profileBtn,
-            {
-              backgroundColor: colors.primary,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <Text style={[styles.profileInitial, { color: colors.primaryForeground }]}>
-            {firstName.charAt(0).toUpperCase()}
-          </Text>
-        </Pressable>
+        {/* Header actions */}
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View alert history"
+            onPress={() => router.push("/history")}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Feather name="clock" size={18} color={colors.primary} />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+            onPress={() => router.push("/profile")}
+            style={({ pressed }) => [
+              styles.profileBtn,
+              {
+                backgroundColor: colors.primary,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.profileInitial, { color: colors.primaryForeground }]}>
+              {firstName.charAt(0).toUpperCase()}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Status bar ── */}
@@ -414,6 +432,19 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1.4,
     marginTop: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   profileBtn: {
     width: 40,
