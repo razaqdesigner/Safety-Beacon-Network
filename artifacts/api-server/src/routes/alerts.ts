@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, alertsTable, usersTable } from "@workspace/db";
 import { eq, desc, gte, count, and } from "drizzle-orm";
 import { CreateAlertBody } from "@workspace/api-zod";
+import { sendPushNotification } from "../lib/push.js";
 
 const router: IRouter = Router();
 
@@ -39,6 +40,20 @@ router.post("/", async (req, res) => {
   req.log.info(
     { alertId: created.id, userId: created.userId, source: created.triggerSource },
     "Distress alert created",
+  );
+
+  // Fire push notification — non-blocking, errors are swallowed inside sendPushNotification
+  const [userRow] = await db
+    .select({ pushToken: usersTable.pushToken })
+    .from(usersTable)
+    .where(eq(usersTable.id, created.userId))
+    .limit(1);
+
+  void sendPushNotification(
+    userRow?.pushToken,
+    "🚨 Alert sent — help is on the way",
+    "Your distress signal reached dispatchers. Stay on the line.",
+    { alertId: created.id },
   );
 
   res.json(created);

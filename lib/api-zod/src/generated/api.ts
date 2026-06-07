@@ -60,6 +60,18 @@ export const LookupUserResponse = zod.object({
 });
 
 /**
+ * Stores the device's Expo push notification token so the server can send alerts
+ * @summary Register an Expo push token for a user
+ */
+export const RegisterPushTokenParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const RegisterPushTokenBody = zod.object({
+  pushToken: zod.string().describe("Expo push token (ExponentPushToken[...])"),
+});
+
+/**
  * @summary Get a user by id
  */
 export const GetUserParams = zod.object({

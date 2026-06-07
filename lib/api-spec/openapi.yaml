@@ -76,6 +76,30 @@ paths:
         "404":
           description: No user found
 
+  /users/{userId}/push-token:
+    patch:
+      operationId: registerPushToken
+      tags: [users]
+      summary: Register an Expo push token for a user
+      description: Stores the device's Expo push notification token so the server can send alerts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushTokenInput"
+      responses:
+        "204":
+          description: Token stored
+        "404":
+          description: User not found
+
   /users/{userId}:
     get:
       operationId: getUser
@@ -208,6 +232,15 @@ components:
           type: string
       required:
         - status
+
+    RegisterPushTokenInput:
+      type: object
+      properties:
+        pushToken:
+          type: string
+          description: Expo push token (ExponentPushToken[...])
+      required:
+        - pushToken
 
     RegisterUserInput:
       type: object

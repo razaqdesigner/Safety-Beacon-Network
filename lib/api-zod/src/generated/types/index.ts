@@ -15,5 +15,6 @@ export * from "./createAlertInput";
 export * from "./createAlertInputTriggerSource";
 export * from "./healthStatus";
 export * from "./lookupUserParams";
+export * from "./registerPushTokenInput";
 export * from "./registerUserInput";
 export * from "./user";

@@ -9,6 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface RegisterPushTokenInput {
+  /** Expo push token (ExponentPushToken[...]) */
+  pushToken: string;
+}
+
 export interface RegisterUserInput {
   /** @minLength 2 */
   fullName: string;

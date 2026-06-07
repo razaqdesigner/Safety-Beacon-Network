@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq, desc, or } from "drizzle-orm";
-import { RegisterUserBody } from "@workspace/api-zod";
+import { RegisterUserBody, RegisterPushTokenBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -72,6 +72,32 @@ router.get("/", async (_req, res) => {
     .from(usersTable)
     .orderBy(desc(usersTable.createdAt));
   res.json(rows);
+});
+
+router.patch("/:userId/push-token", async (req, res) => {
+  const { userId } = req.params;
+  const parsed = RegisterPushTokenBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input", issues: parsed.error.issues });
+    return;
+  }
+
+  const existing = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId))
+    .limit(1);
+  if (existing.length === 0) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  await db
+    .update(usersTable)
+    .set({ pushToken: parsed.data.pushToken })
+    .where(eq(usersTable.id, userId));
+
+  res.status(204).end();
 });
 
 router.get("/:userId", async (req, res) => {

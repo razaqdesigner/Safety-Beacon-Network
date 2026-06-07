@@ -1,0 +1,1 @@
+- [expo-notifications version](expo-notifications-version.md) — SDK 54 needs ~0.32.x; Metro requires local install in artifact node_modules

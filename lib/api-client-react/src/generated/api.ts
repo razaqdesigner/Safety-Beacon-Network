@@ -23,6 +23,7 @@ import type {
   CreateAlertInput,
   HealthStatus,
   LookupUserParams,
+  RegisterPushTokenInput,
   RegisterUserInput,
   User,
 } from "./api.schemas";
@@ -293,6 +294,94 @@ export function useLookupUser<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Stores the device's Expo push notification token so the server can send alerts
+ * @summary Register an Expo push token for a user
+ */
+export const getRegisterPushTokenUrl = (userId: string) => {
+  return `/api/users/${userId}/push-token`;
+};
+
+export const registerPushToken = async (
+  userId: string,
+  registerPushTokenInput: RegisterPushTokenInput,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRegisterPushTokenUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerPushTokenInput),
+  });
+};
+
+export const getRegisterPushTokenMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerPushToken>>,
+    TError,
+    { userId: string; data: BodyType<RegisterPushTokenInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerPushToken>>,
+  TError,
+  { userId: string; data: BodyType<RegisterPushTokenInput> },
+  TContext
+> => {
+  const mutationKey = ["registerPushToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerPushToken>>,
+    { userId: string; data: BodyType<RegisterPushTokenInput> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return registerPushToken(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterPushTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerPushToken>>
+>;
+export type RegisterPushTokenMutationBody = BodyType<RegisterPushTokenInput>;
+export type RegisterPushTokenMutationError = ErrorType<void>;
+
+/**
+ * @summary Register an Expo push token for a user
+ */
+export const useRegisterPushToken = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerPushToken>>,
+    TError,
+    { userId: string; data: BodyType<RegisterPushTokenInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerPushToken>>,
+  TError,
+  { userId: string; data: BodyType<RegisterPushTokenInput> },
+  TContext
+> => {
+  return useMutation(getRegisterPushTokenMutationOptions(options));
+};
 
 /**
  * @summary Get a user by id

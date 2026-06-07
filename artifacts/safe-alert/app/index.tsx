@@ -29,6 +29,7 @@ import { SOSButton } from "@/components/SOSButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useShakeDetector } from "@/hooks/useShakeDetector";
 import { useCreateAlert } from "@workspace/api-client-react";
 
@@ -48,6 +49,8 @@ export default function Home() {
   const [alertSent, setAlertSent] = useState(false);
 
   const createAlert = useCreateAlert();
+
+  usePushNotifications(userId);
 
   const sentScale = useSharedValue(0);
   const sentOpacity = useSharedValue(0);
