@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useRegisterPushToken } from "@workspace/api-client-react";
 
 /**
@@ -9,14 +9,26 @@ import { useRegisterPushToken } from "@workspace/api-client-react";
  * and registers it with the backend once per userId.
  *
  * - No-ops on web (Expo push tokens are native-only).
+ * - No-ops on Android Expo Go because remote notifications are not bundled
+ *   there; native builds still register normally.
  * - Errors are swallowed so a failed registration never breaks the home screen.
  */
 export function usePushNotifications(userId: string | null) {
   const registerToken = useRegisterPushToken();
   const registered = useRef(false);
+  const isAndroidExpoGo =
+    Platform.OS === "android" &&
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
   useEffect(() => {
-    if (!userId || Platform.OS === "web" || registered.current) return;
+    if (
+      !userId ||
+      Platform.OS === "web" ||
+      isAndroidExpoGo ||
+      registered.current
+    ) {
+      return;
+    }
 
     void (async () => {
       try {
@@ -54,5 +66,5 @@ export function usePushNotifications(userId: string | null) {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [isAndroidExpoGo, userId]);
 }
