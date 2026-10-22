@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureBootstrapAdmin } from "./lib/bootstrap-admin";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,8 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+});
+
+ensureBootstrapAdmin().catch((err) => {
+  logger.error({ err }, "Could not create bootstrap dispatcher account");
 });

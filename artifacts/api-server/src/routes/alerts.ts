@@ -1,12 +1,14 @@
 import { Router, type IRouter } from "express";
 import { db, alertsTable, usersTable } from "@workspace/db";
-import { eq, desc, gte, count, and } from "drizzle-orm";
+import { eq, desc, gte, count } from "drizzle-orm";
 import { CreateAlertBody } from "@workspace/api-zod";
+import { isUuid, toPublicUser } from "../lib/auth.js";
 import { sendPushNotification } from "../lib/push.js";
+import { requireAdmin, requireCitizen, requireSelfOrAdmin } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
-router.post("/", async (req, res) => {
+router.post("/", requireCitizen, async (req, res) => {
   const parsed = CreateAlertBody.safeParse(req.body);
   if (!parsed.success) {
     res
@@ -15,6 +17,10 @@ router.post("/", async (req, res) => {
     return;
   }
   const data = parsed.data;
+  if (data.userId !== req.citizen!.userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
 
   const userExists = await db
     .select({ id: usersTable.id })
@@ -59,7 +65,7 @@ router.post("/", async (req, res) => {
   res.json(created);
 });
 
-router.get("/", async (_req, res) => {
+router.get("/", requireAdmin, async (_req, res) => {
   const rows = await db
     .select({
       alert: alertsTable,
@@ -69,11 +75,11 @@ router.get("/", async (_req, res) => {
     .innerJoin(usersTable, eq(alertsTable.userId, usersTable.id))
     .orderBy(desc(alertsTable.createdAt));
 
-  const result = rows.map((r) => ({ ...r.alert, user: r.user }));
+  const result = rows.map((r) => ({ ...r.alert, user: toPublicUser(r.user) }));
   res.json(result);
 });
 
-router.get("/stats", async (_req, res) => {
+router.get("/stats", requireAdmin, async (_req, res) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const [totalAlertsRow] = await db
@@ -97,8 +103,8 @@ router.get("/stats", async (_req, res) => {
   });
 });
 
-router.get("/user/:userId", async (req, res) => {
-  const { userId } = req.params;
+router.get("/user/:userId", requireSelfOrAdmin("userId"), async (req, res) => {
+  const userId = req.params.userId as string;
   const rows = await db
     .select()
     .from(alertsTable)
@@ -107,8 +113,12 @@ router.get("/user/:userId", async (req, res) => {
   res.json(rows);
 });
 
-router.patch("/:alertId/resolve", async (req, res) => {
-  const { alertId } = req.params;
+router.patch("/:alertId/resolve", requireAdmin, async (req, res) => {
+  const alertId = req.params.alertId as string;
+  if (!isUuid(alertId)) {
+    res.status(404).json({ error: "Alert not found" });
+    return;
+  }
 
   const [existing] = await db
     .select({ id: alertsTable.id, status: alertsTable.status })
@@ -127,11 +137,8 @@ router.patch("/:alertId/resolve", async (req, res) => {
     .where(eq(alertsTable.id, alertId))
     .returning();
 
-  req.log.info({ alertId: updated.id }, "Alert resolved by dispatcher");
+  req.log.info({ alertId: updated.id, adminId: req.admin!.id }, "Alert resolved by dispatcher");
   res.json(updated);
 });
-
-// Suppress unused import warning for `and`
-void and;
 
 export default router;

@@ -66,6 +66,11 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Local dev only: Replit's router serves /api on the same origin, so
+    // outside Replit we forward it to the API server instead.
+    proxy: process.env.API_PROXY_TARGET
+      ? { "/api": { target: process.env.API_PROXY_TARGET, changeOrigin: true } }
+      : undefined,
   },
   preview: {
     port,

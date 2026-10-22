@@ -5,6 +5,64 @@
  * SafeAlert community safety API
  * OpenAPI spec version: 0.1.0
  */
+export interface User {
+  id: string;
+  fullName: string;
+  phoneNumber: string;
+  nationalId: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface AuthSession {
+  /** Bearer token for this device. Store it securely. */
+  token: string;
+  user: User;
+}
+
+export interface StartRecoveryInput {
+  phone?: string;
+  nationalId?: string;
+}
+
+/**
+ * How the code was delivered ("console" only in development)
+ */
+export type RecoveryChallengeChannel =
+  (typeof RecoveryChallengeChannel)[keyof typeof RecoveryChallengeChannel];
+
+export const RecoveryChallengeChannel = {
+  sms: "sms",
+  email: "email",
+  console: "console",
+} as const;
+
+export interface RecoveryChallenge {
+  challengeId: string;
+  /** How the code was delivered ("console" only in development) */
+  channel: RecoveryChallengeChannel;
+  /** Masked phone number or email the code was sent to */
+  destination: string;
+}
+
+export interface VerifyRecoveryInput {
+  challengeId: string;
+  /** @pattern ^[0-9]{6}$ */
+  code: string;
+}
+
+export interface AdminLoginInput {
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -22,15 +80,6 @@ export interface RegisterUserInput {
   /** @minLength 3 */
   nationalId: string;
   email: string;
-}
-
-export interface User {
-  id: string;
-  fullName: string;
-  phoneNumber: string;
-  nationalId: string;
-  email: string;
-  createdAt: string;
 }
 
 export type CreateAlertInputTriggerSource =
@@ -85,8 +134,3 @@ export interface AlertStats {
   alertsLast24h: number;
   totalUsers: number;
 }
-
-export type LookupUserParams = {
-  phone?: string;
-  nationalId?: string;
-};

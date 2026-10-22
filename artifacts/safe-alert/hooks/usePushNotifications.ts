@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useRegisterPushToken } from "@workspace/api-client-react";
 
@@ -10,7 +9,9 @@ import { useRegisterPushToken } from "@workspace/api-client-react";
  *
  * - No-ops on web (Expo push tokens are native-only).
  * - No-ops on Android Expo Go because remote notifications are not bundled
- *   there; native builds still register normally.
+ *   there; native builds still register normally. expo-notifications is
+ *   loaded lazily for this reason: merely importing it registers a push-token
+ *   listener that throws on Android Expo Go (SDK 53+).
  * - Errors are swallowed so a failed registration never breaks the home screen.
  */
 export function usePushNotifications(userId: string | null) {
@@ -32,6 +33,8 @@ export function usePushNotifications(userId: string | null) {
 
     void (async () => {
       try {
+        const Notifications = await import("expo-notifications");
+
         // Ask for permission — NotificationPermissionsStatus extends PermissionResponse
         // which exposes a `granted: boolean` shorthand.
         const existing = await Notifications.getPermissionsAsync();

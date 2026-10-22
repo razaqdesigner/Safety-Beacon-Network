@@ -16,7 +16,8 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Creates a registered user account with personal information
+ * Creates a registered user account and returns a device session token. Fails with 409 if the email, phone number or National ID is already registered — the citizen should recover that account instead.
+
  * @summary Register a new citizen
  */
 export const registerUserBodyFullNameMin = 2;
@@ -33,30 +34,86 @@ export const RegisterUserBody = zod.object({
 });
 
 export const RegisterUserResponse = zod.object({
-  id: zod.string(),
-  fullName: zod.string(),
-  phoneNumber: zod.string(),
-  nationalId: zod.string(),
-  email: zod.string(),
-  createdAt: zod.coerce.date(),
+  token: zod
+    .string()
+    .describe("Bearer token for this device. Store it securely."),
+  user: zod.object({
+    id: zod.string(),
+    fullName: zod.string(),
+    phoneNumber: zod.string(),
+    nationalId: zod.string(),
+    email: zod.string(),
+    createdAt: zod.coerce.date(),
+  }),
 });
 
 /**
- * Returns the matching user so they can recover their session on a new device
- * @summary Look up a registered user by phone or National ID
+ * Looks up the account by phone or National ID and sends a 6-digit code to the phone number or email on file. The code must be submitted to /auth/recover/verify to obtain a session.
+
+ * @summary Send a one-time code to recover an account
  */
-export const LookupUserQueryParams = zod.object({
-  phone: zod.coerce.string().optional(),
-  nationalId: zod.coerce.string().optional(),
+export const StartRecoveryBody = zod.object({
+  phone: zod.string().optional(),
+  nationalId: zod.string().optional(),
 });
 
-export const LookupUserResponse = zod.object({
+export const StartRecoveryResponse = zod.object({
+  challengeId: zod.string(),
+  channel: zod
+    .enum(["sms", "email", "console"])
+    .describe('How the code was delivered (\"console\" only in development)'),
+  destination: zod
+    .string()
+    .describe("Masked phone number or email the code was sent to"),
+});
+
+/**
+ * @summary Exchange a one-time code for a session
+ */
+export const verifyRecoveryBodyCodeRegExp = new RegExp("^[0-9]{6}$");
+
+export const VerifyRecoveryBody = zod.object({
+  challengeId: zod.string(),
+  code: zod.string().regex(verifyRecoveryBodyCodeRegExp),
+});
+
+export const VerifyRecoveryResponse = zod.object({
+  token: zod
+    .string()
+    .describe("Bearer token for this device. Store it securely."),
+  user: zod.object({
+    id: zod.string(),
+    fullName: zod.string(),
+    phoneNumber: zod.string(),
+    nationalId: zod.string(),
+    email: zod.string(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * Sets an HTTP-only session cookie on success
+ * @summary Sign in as a dispatcher
+ */
+
+export const AdminLoginBody = zod.object({
+  email: zod.string().email(),
+  password: zod.string().min(1),
+});
+
+export const AdminLoginResponse = zod.object({
   id: zod.string(),
-  fullName: zod.string(),
-  phoneNumber: zod.string(),
-  nationalId: zod.string(),
   email: zod.string(),
-  createdAt: zod.coerce.date(),
+  name: zod.string(),
+});
+
+/**
+ * @summary The signed-in dispatcher
+ */
+export const GetAdminMeResponse = zod.object({
+  id: zod.string(),
+  email: zod.string(),
+  name: zod.string(),
 });
 
 /**

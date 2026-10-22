@@ -9,11 +9,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,20 +22,11 @@ export default function Lookup() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { recoverSession, recovering, recoverError } = useAuth();
+  const { startRecovery, recovering, recoverError } = useAuth();
 
   const [mode, setMode] = useState<Mode>("phone");
   const [value, setValue] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
-  const [found, setFound] = useState<{ fullName: string } | null>(null);
-
-  const successScale = useSharedValue(0);
-  const successOpacity = useSharedValue(0);
-
-  const successStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: successScale.value }],
-    opacity: successOpacity.value,
-  }));
 
   function validate(): boolean {
     if (mode === "phone" && value.replace(/\D/g, "").length < 7) {
@@ -58,16 +44,18 @@ export default function Lookup() {
   async function onLookup() {
     if (!validate()) return;
     try {
-      const user = await recoverSession(
+      const challenge = await startRecovery(
         mode === "phone"
           ? { phone: value.trim() }
           : { nationalId: value.trim() },
       );
-      setFound({ fullName: user.fullName });
-      successScale.value = withSpring(1, { damping: 14, stiffness: 160 });
-      successOpacity.value = withSpring(1);
-      // Short delay so the user sees the success state, then navigate home
-      setTimeout(() => router.replace("/"), 1600);
+      router.push({
+        pathname: "/verify",
+        params: {
+          challengeId: challenge.challengeId,
+          destination: challenge.destination,
+        },
+      });
     } catch {
       // recoverError is set by context
     }
@@ -219,7 +207,7 @@ export default function Lookup() {
         )}
 
         {/* API error */}
-        {recoverError && !found && (
+        {recoverError && (
           <View
             style={[
               styles.errorBanner,
@@ -232,76 +220,41 @@ export default function Lookup() {
             <Feather name="alert-circle" size={16} color={colors.destructive} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={[styles.errorBannerTitle, { color: colors.destructive }]}>
-                No account found
+                {recoverError.status === 404 ? "No account found" : "Couldn't send a code"}
               </Text>
               <Text style={[styles.errorBannerText, { color: colors.destructive }]}>
-                Check the {mode === "phone" ? "phone number" : "National ID"} and try again, or create a new profile.
+                {recoverError.status === 404
+                  ? `Check the ${mode === "phone" ? "phone number" : "National ID"} and try again, or create a new profile.`
+                  : recoverError.message}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Success state */}
-        {found && (
-          <Animated.View
-            style={[
-              styles.successCard,
-              {
-                backgroundColor: colors.primary,
-                borderRadius: colors.radius,
-              },
-              successStyle,
-            ]}
-          >
-            <View
-              style={[
-                styles.successIcon,
-                { backgroundColor: colors.accent + "22" },
-              ]}
-            >
-              <Feather name="check-circle" size={22} color={colors.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[styles.successTitle, { color: colors.primaryForeground }]}
-              >
-                Welcome back, {found.fullName.split(" ")[0]}!
-              </Text>
-              <Text
-                style={[styles.successSub, { color: "rgba(255,255,255,0.65)" }]}
-              >
-                Restoring your session…
-              </Text>
-            </View>
-          </Animated.View>
-        )}
-
         {/* CTA */}
-        {!found && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Find my account"
-            disabled={recovering}
-            onPress={onLookup}
-            style={({ pressed }) => [
-              styles.cta,
-              {
-                backgroundColor: colors.primary,
-                borderRadius: colors.radius,
-                opacity: pressed || recovering ? 0.88 : 1,
-              },
-            ]}
-          >
-            {recovering ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Feather name="search" size={18} color="#fff" />
-                <Text style={styles.ctaText}>Find my account</Text>
-              </>
-            )}
-          </Pressable>
-        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Find my account"
+          disabled={recovering}
+          onPress={onLookup}
+          style={({ pressed }) => [
+            styles.cta,
+            {
+              backgroundColor: colors.primary,
+              borderRadius: colors.radius,
+              opacity: pressed || recovering ? 0.88 : 1,
+            },
+          ]}
+        >
+          {recovering ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Feather name="search" size={18} color="#fff" />
+              <Text style={styles.ctaText}>Find my account</Text>
+            </>
+          )}
+        </Pressable>
 
         {/* Divider */}
         <View style={styles.dividerRow}>
@@ -450,29 +403,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 18,
-  },
-
-  successCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 18,
-  },
-  successIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  successSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
   },
 
   cta: {

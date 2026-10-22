@@ -23,7 +23,11 @@ import { setBaseUrl } from "@workspace/api-client-react";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const FeatherFont = require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf") as number;
 
-if (process.env.EXPO_PUBLIC_DOMAIN) {
+// EXPO_PUBLIC_API_URL is a full URL override for local development
+// (e.g. http://192.168.1.10:8080); Replit provides EXPO_PUBLIC_DOMAIN.
+if (process.env.EXPO_PUBLIC_API_URL) {
+  setBaseUrl(process.env.EXPO_PUBLIC_API_URL);
+} else if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
 
@@ -51,6 +55,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
       <Stack.Screen name="register" />
       <Stack.Screen name="lookup" />
+      <Stack.Screen name="verify" />
       <Stack.Screen name="history" />
       <Stack.Screen name="profile" options={{ presentation: "modal" }} />
     </Stack>

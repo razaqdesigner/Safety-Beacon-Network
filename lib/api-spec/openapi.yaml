@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Citizen sessions and account recovery
+  - name: admin
+    description: Dispatcher sign-in
   - name: users
     description: Registered citizens
   - name: alerts
@@ -34,7 +38,10 @@ paths:
       operationId: registerUser
       tags: [users]
       summary: Register a new citizen
-      description: Creates a registered user account with personal information
+      description: >
+        Creates a registered user account and returns a device session token.
+        Fails with 409 if the email, phone number or National ID is already
+        registered — the citizen should recover that account instead.
       requestBody:
         required: true
         content:
@@ -43,42 +50,132 @@ paths:
               $ref: "#/components/schemas/RegisterUserInput"
       responses:
         "200":
-          description: Registered user
+          description: Registered user and session token
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/AuthSession"
+        "409":
+          description: An account with these details already exists
 
-  /users/lookup:
-    get:
-      operationId: lookupUser
-      tags: [users]
-      summary: Look up a registered user by phone or National ID
-      description: Returns the matching user so they can recover their session on a new device
-      parameters:
-        - name: phone
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: nationalId
-          in: query
-          required: false
-          schema:
-            type: string
+  /auth/recover:
+    post:
+      operationId: startRecovery
+      tags: [auth]
+      summary: Send a one-time code to recover an account
+      description: >
+        Looks up the account by phone or National ID and sends a 6-digit code
+        to the phone number or email on file. The code must be submitted to
+        /auth/recover/verify to obtain a session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRecoveryInput"
       responses:
         "200":
-          description: Matched user
+          description: Code sent
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/RecoveryChallenge"
         "404":
           description: No user found
+        "429":
+          description: Too many attempts
+        "503":
+          description: No code delivery provider is configured
+
+  /auth/recover/verify:
+    post:
+      operationId: verifyRecovery
+      tags: [auth]
+      summary: Exchange a one-time code for a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyRecoveryInput"
+      responses:
+        "200":
+          description: Recovered user and session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Code is wrong, expired or already used
+        "429":
+          description: Too many attempts
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Revoke the current device session
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Session revoked
+
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Sign in as a dispatcher
+      description: Sets an HTTP-only session cookie on success
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Signed-in dispatcher
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          description: Wrong email or password
+        "429":
+          description: Too many attempts
+
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [admin]
+      summary: Sign out the current dispatcher
+      responses:
+        "204":
+          description: Signed out
+
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: The signed-in dispatcher
+      security:
+        - adminCookie: []
+      responses:
+        "200":
+          description: Signed-in dispatcher
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          description: Not signed in
 
   /users/{userId}/push-token:
     patch:
       operationId: registerPushToken
+      security:
+        - bearerAuth: []
       tags: [users]
       summary: Register an Expo push token for a user
       description: Stores the device's Expo push notification token so the server can send alerts
@@ -103,6 +200,9 @@ paths:
   /users/{userId}:
     get:
       operationId: getUser
+      security:
+        - bearerAuth: []
+        - adminCookie: []
       tags: [users]
       summary: Get a user by id
       parameters:
@@ -122,6 +222,8 @@ paths:
   /users:
     get:
       operationId: listUsers
+      security:
+        - adminCookie: []
       tags: [users]
       summary: List registered users (admin)
       responses:
@@ -137,6 +239,8 @@ paths:
   /alerts:
     post:
       operationId: createAlert
+      security:
+        - bearerAuth: []
       tags: [alerts]
       summary: Trigger an emergency alert
       description: Creates a distress alert with the user's precise location
@@ -155,6 +259,8 @@ paths:
                 $ref: "#/components/schemas/Alert"
     get:
       operationId: listAlerts
+      security:
+        - adminCookie: []
       tags: [alerts]
       summary: List all alerts (admin)
       responses:
@@ -170,6 +276,9 @@ paths:
   /alerts/user/{userId}:
     get:
       operationId: listUserAlerts
+      security:
+        - bearerAuth: []
+        - adminCookie: []
       tags: [alerts]
       summary: List alerts for a single user
       parameters:
@@ -191,6 +300,8 @@ paths:
   /alerts/{alertId}/resolve:
     patch:
       operationId: resolveAlert
+      security:
+        - adminCookie: []
       tags: [alerts]
       summary: Resolve an active alert
       description: Marks an active distress alert as resolved by a dispatcher
@@ -213,6 +324,8 @@ paths:
   /alerts/stats:
     get:
       operationId: getAlertStats
+      security:
+        - adminCookie: []
       tags: [alerts]
       summary: Aggregate alert statistics (admin)
       responses:
@@ -224,7 +337,94 @@ paths:
                 $ref: "#/components/schemas/AlertStats"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Citizen device session token from register or recovery
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: sa_admin
+      description: Dispatcher session cookie set by /admin/login
+
   schemas:
+    AuthSession:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Bearer token for this device. Store it securely.
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    StartRecoveryInput:
+      type: object
+      properties:
+        phone:
+          type: string
+        nationalId:
+          type: string
+
+    RecoveryChallenge:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        channel:
+          type: string
+          enum: [sms, email, console]
+          description: How the code was delivered ("console" only in development)
+        destination:
+          type: string
+          description: Masked phone number or email the code was sent to
+      required:
+        - challengeId
+        - channel
+        - destination
+
+    VerifyRecoveryInput:
+      type: object
+      properties:
+        challengeId:
+          type: string
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+      required:
+        - challengeId
+        - code
+
+    AdminLoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+      required:
+        - email
+        - password
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - email
+        - name
+
     HealthStatus:
       type: object
       properties:

@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type LookupUserParams = {
-  phone?: string;
-  nationalId?: string;
-};
+export interface AdminLoginInput {
+  email: string;
+  /** @minLength 1 */
+  password: string;
+}
