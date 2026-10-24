@@ -5,6 +5,52 @@
  * SafeAlert community safety API
  * OpenAPI spec version: 0.1.0
  */
+export interface CreateBroadcastInput {
+  /**
+   * @minLength 1
+   * @maxLength 65
+   */
+  title: string;
+  /**
+   * @minLength 1
+   * @maxLength 240
+   */
+  body: string;
+}
+
+export interface Broadcast {
+  id: string;
+  title: string;
+  body: string;
+  /** Dispatcher who sent it (null if their account was deleted) */
+  sentByName: string | null;
+  /** Devices a push was attempted to */
+  recipientCount: number;
+  /** Pushes accepted by the Expo push service */
+  sentCount: number;
+  failedCount: number;
+  createdAt: string;
+}
+
+export interface BroadcastReach {
+  /** Citizens who will see it in their in-app inbox */
+  totalUsers: number;
+  /** Citizens whose device will also get a push notification */
+  pushEnabledUsers: number;
+}
+
+export interface CitizenNotification {
+  id: string;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface ClearReadResult {
+  cleared: number;
+}
+
 export interface User {
   id: string;
   fullName: string;

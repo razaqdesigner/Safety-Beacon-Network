@@ -255,3 +255,105 @@ export const GetAlertStatsResponse = zod.object({
   alertsLast24h: zod.number(),
   totalUsers: zod.number(),
 });
+
+/**
+ * Stores the message (shown in every citizen's in-app inbox) and sends a push notification to each device that has registered a push token.
+
+ * @summary Send a notification to every citizen
+ */
+export const createBroadcastBodyTitleMax = 65;
+
+export const createBroadcastBodyBodyMax = 240;
+
+export const CreateBroadcastBody = zod.object({
+  title: zod.string().min(1).max(createBroadcastBodyTitleMax),
+  body: zod.string().min(1).max(createBroadcastBodyBodyMax),
+});
+
+export const CreateBroadcastResponse = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  body: zod.string(),
+  sentByName: zod
+    .string()
+    .nullable()
+    .describe("Dispatcher who sent it (null if their account was deleted)"),
+  recipientCount: zod.number().describe("Devices a push was attempted to"),
+  sentCount: zod.number().describe("Pushes accepted by the Expo push service"),
+  failedCount: zod.number(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Past broadcasts, newest first (admin)
+ */
+export const ListBroadcastsResponseItem = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  body: zod.string(),
+  sentByName: zod
+    .string()
+    .nullable()
+    .describe("Dispatcher who sent it (null if their account was deleted)"),
+  recipientCount: zod.number().describe("Devices a push was attempted to"),
+  sentCount: zod.number().describe("Pushes accepted by the Expo push service"),
+  failedCount: zod.number(),
+  createdAt: zod.coerce.date(),
+});
+export const ListBroadcastsResponse = zod.array(ListBroadcastsResponseItem);
+
+/**
+ * @summary How many citizens a broadcast would reach (admin)
+ */
+export const GetBroadcastReachResponse = zod.object({
+  totalUsers: zod
+    .number()
+    .describe("Citizens who will see it in their in-app inbox"),
+  pushEnabledUsers: zod
+    .number()
+    .describe("Citizens whose device will also get a push notification"),
+});
+
+/**
+ * Broadcasts sent since the citizen registered (latest 50)
+ * @summary The signed-in citizen's notifications inbox, newest first
+ */
+export const ListNotificationsResponseItem = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  body: zod.string(),
+  read: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+export const ListNotificationsResponse = zod.array(
+  ListNotificationsResponseItem,
+);
+
+/**
+ * @summary Remove all read notifications from the inbox
+ */
+export const ClearReadNotificationsResponse = zod.object({
+  cleared: zod.number(),
+});
+
+/**
+ * @summary One notification from the inbox
+ */
+export const GetNotificationParams = zod.object({
+  notificationId: zod.coerce.string(),
+});
+
+export const GetNotificationResponse = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  body: zod.string(),
+  read: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Mark one notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  notificationId: zod.coerce.string(),
+});

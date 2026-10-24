@@ -12,6 +12,7 @@ import AlertDetail from "./pages/alert-detail";
 import Users from "./pages/users";
 import UserDetail from "./pages/user-detail";
 import Login from "./pages/login";
+import Notifications from "./pages/notifications";
 
 // Set base URL for API client
 setBaseUrl("");
@@ -45,6 +46,7 @@ function Router() {
         <Route path="/alerts/:id" component={AlertDetail} />
         <Route path="/users" component={Users} />
         <Route path="/users/:id" component={UserDetail} />
+        <Route path="/notifications" component={Notifications} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

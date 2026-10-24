@@ -57,6 +57,8 @@ function RootLayoutNav() {
       <Stack.Screen name="lookup" />
       <Stack.Screen name="verify" />
       <Stack.Screen name="history" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="notification/[id]" />
       <Stack.Screen name="profile" options={{ presentation: "modal" }} />
     </Stack>
   );

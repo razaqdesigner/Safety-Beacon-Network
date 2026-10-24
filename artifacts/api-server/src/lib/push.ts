@@ -1,6 +1,6 @@
 import { logger } from "./logger.js";
 
-interface ExpoMessage {
+export interface ExpoMessage {
   to: string;
   title: string;
   body: string;
@@ -8,8 +8,82 @@ interface ExpoMessage {
   data?: Record<string, unknown>;
 }
 
+interface ExpoTicket {
+  status?: "ok" | "error";
+  message?: string;
+  details?: { error?: string };
+}
+
+export interface PushResult {
+  sent: number;
+  failed: number;
+  /** Tokens Expo reported as no longer registered; safe to forget. */
+  invalidTokens: string[];
+}
+
+const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+// Expo accepts at most 100 messages per request.
+const BATCH_SIZE = 100;
+
+function headers(): Record<string, string> {
+  const h: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "Accept-Encoding": "gzip, deflate",
+  };
+  // Only needed if "enhanced push security" is enabled for the Expo project.
+  if (process.env.EXPO_ACCESS_TOKEN) {
+    h.Authorization = `Bearer ${process.env.EXPO_ACCESS_TOKEN}`;
+  }
+  return h;
+}
+
 /**
- * Sends a push notification to an Expo push token via the Expo Push API.
+ * Sends many push notifications via the Expo Push API in batches. Never
+ * throws: a failed batch is counted as failed and logged.
+ */
+export async function sendPushBatch(messages: ExpoMessage[]): Promise<PushResult> {
+  const result: PushResult = { sent: 0, failed: 0, invalidTokens: [] };
+
+  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+    const batch = messages.slice(i, i + BATCH_SIZE);
+    try {
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(batch),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        logger.warn({ status: res.status, body: text, count: batch.length }, "Expo push non-OK response");
+        result.failed += batch.length;
+        continue;
+      }
+      const json = (await res.json()) as { data?: ExpoTicket[] };
+      batch.forEach((msg, idx) => {
+        const ticket = json.data?.[idx];
+        if (ticket?.status === "ok") {
+          result.sent++;
+          return;
+        }
+        result.failed++;
+        if (ticket?.details?.error === "DeviceNotRegistered") {
+          result.invalidTokens.push(msg.to);
+        } else {
+          logger.warn({ token: msg.to, error: ticket?.message }, "Expo push ticket error");
+        }
+      });
+    } catch (err) {
+      logger.warn({ err, count: batch.length }, "Push batch failed — continuing");
+      result.failed += batch.length;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Sends a push notification to a single Expo push token.
  * Fire-and-forget: logs errors but never throws, so a failed push never
  * interrupts the alert creation response.
  */
@@ -24,31 +98,6 @@ export async function sendPushNotification(
   const message: ExpoMessage = { to: token, title, body, sound: "default" };
   if (data) message.data = data;
 
-  try {
-    const res = await fetch("https://exp.host/push/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Accept-Encoding": "gzip, deflate",
-      },
-      body: JSON.stringify(message),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      logger.warn({ token, status: res.status, body: text }, "Expo push non-OK response");
-      return;
-    }
-
-    const json = (await res.json()) as { data?: { status?: string; message?: string }[] };
-    const ticket = json?.data?.[0];
-    if (ticket?.status === "error") {
-      logger.warn({ token, error: ticket.message }, "Expo push ticket error");
-    } else {
-      logger.info({ token }, "Push notification sent");
-    }
-  } catch (err) {
-    logger.warn({ err, token }, "Push notification failed — continuing");
-  }
+  const { sent } = await sendPushBatch([message]);
+  if (sent) logger.info({ token }, "Push notification sent");
 }

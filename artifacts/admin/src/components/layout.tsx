@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ShieldAlert, LayoutDashboard, AlertTriangle, Users, LogOut } from "lucide-react";
+import { ShieldAlert, LayoutDashboard, AlertTriangle, Users, Bell, LogOut } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetAdminMeQueryKey, useAdminLogout, useGetAdminMe } from "@workspace/api-client-react";
 
@@ -29,6 +29,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Alerts", href: "/alerts", icon: AlertTriangle },
     { name: "Users", href: "/users", icon: Users },
+    { name: "Notifications", href: "/notifications", icon: Bell },
   ];
 
   return (

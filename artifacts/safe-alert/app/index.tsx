@@ -28,6 +28,7 @@ import { ReassuringMessage } from "@/components/ReassuringMessage";
 import { SOSButton } from "@/components/SOSButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useNotificationsInbox } from "@/hooks/useNotificationsInbox";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useShakeDetector } from "@/hooks/useShakeDetector";
@@ -51,6 +52,7 @@ export default function Home() {
   const createAlert = useCreateAlert();
 
   usePushNotifications(userId);
+  const { hasUnread } = useNotificationsInbox(userId);
 
   const sentScale = useSharedValue(0);
   const sentOpacity = useSharedValue(0);
@@ -216,6 +218,30 @@ export default function Home() {
 
         {/* Header actions */}
         <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={hasUnread ? "Notifications, new messages" : "Notifications"}
+            onPress={() => router.push("/notifications")}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Feather name="bell" size={18} color={colors.primary} />
+            {hasUnread && (
+              <View
+                style={[
+                  styles.unreadDot,
+                  { backgroundColor: colors.accent, borderColor: colors.card },
+                ]}
+              />
+            )}
+          </Pressable>
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="View alert history"
@@ -448,6 +474,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  unreadDot: {
+    position: "absolute",
+    top: 8,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 1.5,
   },
   profileBtn: {
     width: 40,

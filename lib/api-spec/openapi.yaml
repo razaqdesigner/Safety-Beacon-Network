@@ -18,6 +18,8 @@ tags:
     description: Registered citizens
   - name: alerts
     description: Emergency distress alerts
+  - name: broadcasts
+    description: Announcements dispatchers send to every citizen
 paths:
   /healthz:
     get:
@@ -336,6 +338,146 @@ paths:
               schema:
                 $ref: "#/components/schemas/AlertStats"
 
+  /broadcasts:
+    post:
+      operationId: createBroadcast
+      tags: [broadcasts]
+      summary: Send a notification to every citizen
+      description: >
+        Stores the message (shown in every citizen's in-app inbox) and sends a
+        push notification to each device that has registered a push token.
+      security:
+        - adminCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBroadcastInput"
+      responses:
+        "200":
+          description: The broadcast with push delivery stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Broadcast"
+    get:
+      operationId: listBroadcasts
+      tags: [broadcasts]
+      summary: Past broadcasts, newest first (admin)
+      security:
+        - adminCookie: []
+      responses:
+        "200":
+          description: Broadcast history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Broadcast"
+
+  /broadcasts/reach:
+    get:
+      operationId: getBroadcastReach
+      tags: [broadcasts]
+      summary: How many citizens a broadcast would reach (admin)
+      security:
+        - adminCookie: []
+      responses:
+        "200":
+          description: Audience size
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastReach"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [broadcasts]
+      summary: The signed-in citizen's notifications inbox, newest first
+      description: Broadcasts sent since the citizen registered (latest 50)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CitizenNotification"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [broadcasts]
+      summary: Mark every notification in the inbox as read
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: All marked read
+
+  /notifications/clear-read:
+    post:
+      operationId: clearReadNotifications
+      tags: [broadcasts]
+      summary: Remove all read notifications from the inbox
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: How many were cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearReadResult"
+
+  /notifications/{notificationId}:
+    get:
+      operationId: getNotification
+      tags: [broadcasts]
+      summary: One notification from the inbox
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CitizenNotification"
+        "404":
+          description: Not in this citizen's inbox (never received or cleared)
+
+  /notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [broadcasts]
+      summary: Mark one notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Marked read
+        "404":
+          description: Not in this citizen's inbox
+
 components:
   securitySchemes:
     bearerAuth:
@@ -349,6 +491,97 @@ components:
       description: Dispatcher session cookie set by /admin/login
 
   schemas:
+    CreateBroadcastInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 65
+        body:
+          type: string
+          minLength: 1
+          maxLength: 240
+      required:
+        - title
+        - body
+
+    Broadcast:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        sentByName:
+          type: string
+          nullable: true
+          description: Dispatcher who sent it (null if their account was deleted)
+        recipientCount:
+          type: integer
+          description: Devices a push was attempted to
+        sentCount:
+          type: integer
+          description: Pushes accepted by the Expo push service
+        failedCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - body
+        - sentByName
+        - recipientCount
+        - sentCount
+        - failedCount
+        - createdAt
+
+    BroadcastReach:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+          description: Citizens who will see it in their in-app inbox
+        pushEnabledUsers:
+          type: integer
+          description: Citizens whose device will also get a push notification
+      required:
+        - totalUsers
+        - pushEnabledUsers
+
+    CitizenNotification:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - body
+        - read
+        - createdAt
+
+    ClearReadResult:
+      type: object
+      properties:
+        cleared:
+          type: integer
+      required:
+        - cleared
+
     AuthSession:
       type: object
       properties:
